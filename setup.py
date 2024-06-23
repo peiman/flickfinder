@@ -10,9 +10,12 @@ setup(
         'rich',
         'python-dotenv'
     ],
+    package_data={
+        'flickfinder': ['config.ini'],
+    },
     entry_points={
         'console_scripts': [
-            'flickfinder=flickfinder.cli:main',
+            'flickfinder=flickfinder.cli:cli',
         ],
     },
     author='Peiman Khorramshahi',

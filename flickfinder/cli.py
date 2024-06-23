@@ -1,16 +1,38 @@
 import os
 import requests
 import click
-from dotenv import load_dotenv
+import configparser
+from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
-load_dotenv()
+# Define the path for the config file in the user's home directory
+CONFIG_FILE_PATH = Path.home() / '.flickfinder_config.ini'
 
-DEFAULT_API_KEY = os.getenv('OMDB_API_KEY')
+def load_config():
+    config = configparser.ConfigParser()
+    if CONFIG_FILE_PATH.is_file():
+        config.read(CONFIG_FILE_PATH)
+    else:
+        config['DEFAULT'] = {'OMDB_API_KEY': ''}
+        with open(CONFIG_FILE_PATH, 'w') as configfile:
+            config.write(configfile)
+    return config
+
+def save_config(config):
+    with open(CONFIG_FILE_PATH, 'w') as configfile:
+        config.write(configfile)
+
+config = load_config()
+DEFAULT_API_KEY = config['DEFAULT'].get('OMDB_API_KEY')
+
 console = Console()
 
+console.print(f"Config file loaded from: {CONFIG_FILE_PATH}", style="bold blue")
+console.print(f"Default API Key: {DEFAULT_API_KEY}", style="bold blue")
+
 def get_movie_rating(movie_title, api_key=DEFAULT_API_KEY):
+    console.print(f"API Key in get_movie_rating: {api_key}", style="bold yellow")
     url = f"http://www.omdbapi.com/?t={movie_title}&apikey={api_key}"
     response = requests.get(url)
     data = response.json()
@@ -76,12 +98,17 @@ def get_movie_details(imdb_id, api_key=DEFAULT_API_KEY):
         'IMDb ID': imdb_id
     }
 
+@click.group()
+def cli():
+    pass
+
 @click.command()
 @click.argument('query')
 @click.option('--api_key', default=DEFAULT_API_KEY, help='OMDb API key')
 @click.option('--search', is_flag=True, help='Search for movies by keyword')
 @click.option('--ratings', is_flag=True, help='Fetch IMDb ratings for search results')
-def main(query, api_key, search, ratings):
+def find(query, api_key, search, ratings):
+    console.print(f"Using API Key: {api_key}", style="bold green")
     if search:
         result = search_movies(query, api_key, fetch_ratings=ratings)
         if isinstance(result, str):
@@ -116,5 +143,12 @@ def main(query, api_key, search, ratings):
 
             console.print(table)
 
-if __name__ == "__main__":
-    main()
+@click.command()
+@click.option('--key', required=True, help='Configuration key to set')
+@click.option('--value', required=True, help='Configuration value to set')
+def set_config(key, value):
+    """Set a configuration value."""
+    config = load_config()
+    config['DEFAULT'][key] = value
+    save_config(config)
+    console.print(f"Configu
